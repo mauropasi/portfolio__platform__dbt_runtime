@@ -53,19 +53,31 @@ jobs:
             type=ref,event=branch
             type=ref,event=pr
 
-      - name: Build and Push Docker Image
+      # 1. Build and load the image into local Docker daemon for smoke testing
+      - name: Build image for testing
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./Dockerfile
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          load: true
+          tags: local-test-image:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # Verification step: ensure the freshly built image executes cleanly
+      # 2. Smoke test: verify image executes dbt and sqlfluff cleanly
       - name: Smoke test image
         run: |
-          docker run --rm ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version || 'main' }} dbt --version
-          docker run --rm ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version || 'main' }} sqlfluff --version
+          docker run --rm local-test-image:latest dbt --version
+          docker run --rm local-test-image:latest sqlfluff --version
+
+      # 3. Push to GHCR on main branch / release tags (only after smoke tests pass!)
+      - name: Push image to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
