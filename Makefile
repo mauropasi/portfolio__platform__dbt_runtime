@@ -15,8 +15,6 @@ test: build ## Verify image builds and key CLIs are functioning
 	docker run --rm $(IMAGE_NAME):$(IMAGE_TAG) dbt --version
 	@echo "==> Testing sqlfluff..."
 	docker run --rm $(IMAGE_NAME):$(IMAGE_TAG) sqlfluff --version
-	@echo "==> Testing pytest..."
-	docker run --rm $(IMAGE_NAME):$(IMAGE_TAG) pytest --version
 	@echo "==> All CLI checks passed successfully!"
 
 run: ## Open an interactive bash shell in the container

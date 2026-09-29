@@ -37,7 +37,7 @@ flowchart TD
 ## Key Design Principles
 
 1. **Separation of Concerns:**
-   - **System Dependencies** (`python`, `uv`, `dbt-core`, `dbt-duckdb`, `sqlfluff`, `pytest`) are baked here.
+   - **System Dependencies** (`python`, `uv`, `dbt-core`, `dbt-duckdb`, `sqlfluff`) are baked here.
    - **Code Dependencies** (SQL models, seeds, `packages.yml`) live strictly in the consumer project repositories.
 2. **Fast & Lightweight:**
    - Uses `python:3.11-slim-bookworm` to keep image size compact (~350MB vs ~1.5GB typical devcontainer images).
@@ -64,7 +64,7 @@ make help
 # Build the image locally
 make build
 
-# Run smoke tests (verifies dbt, sqlfluff, and pytest binaries execute cleanly)
+# Run smoke tests (verifies dbt and sqlfluff binaries execute cleanly)
 make test
 
 # Open an interactive shell inside the container
