@@ -1,4 +1,4 @@
-# dbt Platform Runtime
+# portfolio__platform__dbt_runtime
 
 A standardized, pre-baked container runtime providing the execution engine for downstream analytics projects (such as `ecommerce-dbt-analytics`).
 
@@ -10,14 +10,14 @@ This repository acts as the **Platform / Infrastructure layer** in a governed da
 
 ```mermaid
 flowchart TD
-    subgraph PlatformRepo ["dbt-platform-runtime (This Repo)"]
+    subgraph PlatformRepo ["portfolio__platform__dbt_runtime (This Repo)"]
         DF["Dockerfile\n(Python 3.11 + uv + dbt-duckdb + sqlfluff)"]
         CI["GitHub Actions\n(Build & Tag)"]
         DF --> CI
     end
 
     subgraph Registry ["GitHub Container Registry (GHCR)"]
-        GHCR["ghcr.io/your-org/dbt-platform-runtime\nTags: :1.0.0, :1.0, :1, :latest"]
+        GHCR["ghcr.io/mauropasi/portfolio__platform__dbt_runtime\nTags: :1.0.0, :1.0, :1, :latest"]
         CI --> GHCR
     end
 

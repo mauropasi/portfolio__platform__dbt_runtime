@@ -1,4 +1,4 @@
-IMAGE_NAME ?= dbt-platform-runtime
+IMAGE_NAME ?= portfolio__platform__dbt_runtime
 IMAGE_TAG ?= local
 
 .PHONY: help build test run
