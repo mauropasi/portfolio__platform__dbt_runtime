@@ -44,8 +44,12 @@ RUN uv pip install --system --no-cache -r /tmp/requirements.txt \
     && rm -f /tmp/requirements.txt
 
 # -------------------------------------------------------------
-# 4. Environment & Entrypoint
+# 4. Auto-Discovery & Entrypoint
 # -------------------------------------------------------------
+COPY scripts/init_duckdb.py /usr/local/bin/init_duckdb.py
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/init_duckdb.py /usr/local/bin/entrypoint.sh
+
 USER $USERNAME
 WORKDIR /workspace
 
@@ -53,4 +57,5 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PATH="/home/vscode/.local/bin:${PATH}"
 
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["dbt", "--version"]
