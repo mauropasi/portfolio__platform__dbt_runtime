@@ -1,11 +1,12 @@
 [
   {
-    "id": "1.2",
-    "description": "Platform Runtime 1.2 (dbt-core 1.12.5 + tools v1)",
-    "version_tag": "1.2",
+    "id": "1.2.1",
+    "description": "Platform Runtime 1.2.1 (dbt-core 1.12.5 + tools v1)",
+    "version_tag": "1.2.1",
     "dbt_packages": "dbt-core==1.12.5 dbt-duckdb duckdb",
     "tools_version": "v1",
     "aliases": [
+      "1.2",
       "1",
       "latest",
       "main"
@@ -13,12 +14,13 @@
     "is_latest": true
   },
   {
-    "id": "2.0",
-    "description": "Platform Runtime 2.0 (dbt v2.0 Next-Gen + tools v1)",
-    "version_tag": "2.0",
+    "id": "2.0.1",
+    "description": "Platform Runtime 2.0.1 (dbt v2.0 Next-Gen + tools v1)",
+    "version_tag": "2.0.1",
     "dbt_packages": "dbt>=2.0.0 duckdb",
     "tools_version": "v1",
     "aliases": [
+      "2.0",
       "2"
     ],
     "is_latest": false
