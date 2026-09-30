@@ -25,21 +25,19 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Flavor 1: dbt 1.8 (LTS) using scripts v1
-          - version_tag: "1.1"
-            dbt_version: "1.8.10"
-            duckdb_version: "1.8.4"
+          # Flavor 1: dbt 1.12 (Latest 1.x) using scripts v1
+          - version_tag: "1.12"
+            dbt_packages: "dbt-core==1.12.5 dbt-duckdb duckdb"
             tools_version: "v1"
-            aliases: "1.8"
-            is_latest: false
-
-          # Flavor 2: dbt 1.9 (Latest 1.x) using scripts v1
-          - version_tag: "1.2"
-            dbt_version: "1.9.11"
-            duckdb_version: "1.9.6"
-            tools_version: "v1"
-            aliases: "1.9,latest,main"
+            aliases: "1,v1,latest,main"
             is_latest: true
+
+          # Flavor 2: dbt v2 (Next Generation) using scripts v1
+          - version_tag: "2.0"
+            dbt_packages: "dbt>=2.0.0 duckdb"
+            tools_version: "v1"
+            aliases: "2,v2"
+            is_latest: false
 
     steps:
       - name: Checkout repository
@@ -64,13 +62,13 @@ jobs:
           BASE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
           TAGS="${BASE}:${{ matrix.version_tag }}"
           
-          # Add aliases (e.g. 1.8, 1.9, latest, main)
+          # Add aliases (e.g. 1, v1, latest, main, 2, v2)
           IFS=',' read -ra ALIAS_ARRAY <<< "${{ matrix.aliases }}"
           for alias in "${ALIAS_ARRAY[@]}"; do
             TAGS="${TAGS},${BASE}:${alias}"
           done
           
-          # If triggered by a release tag (e.g. v1.2.0) on the latest flavor, include it
+          # If triggered by a release tag (e.g. v1.12.0) on the latest flavor, include it
           if [[ "${{ github.ref_type }}" == "tag" && "${{ matrix.is_latest }}" == "true" ]]; then
             TAG_CLEAN="${GITHUB_REF_NAME#v}"
             TAGS="${TAGS},${BASE}:${TAG_CLEAN}"
@@ -86,19 +84,19 @@ jobs:
           file: ./Dockerfile
           load: true
           build-args: |
-            DBT_VERSION=${{ matrix.dbt_version }}
-            DUCKDB_VERSION=${{ matrix.duckdb_version }}
+            DBT_PACKAGES=${{ matrix.dbt_packages }}
             TOOLS_VERSION=${{ matrix.tools_version }}
           tags: test-image-${{ matrix.version_tag }}:latest
           cache-from: type=gha,scope=${{ matrix.version_tag }}
           cache-to: type=gha,mode=max,scope=${{ matrix.version_tag }}
 
-      # 2. Smoke test: verify image executes dbt and sqlfluff cleanly
+      # 2. Smoke test: verify image executes dbt, sqlfluff, and duckdb cleanly
       - name: Smoke test image
         run: |
-          echo "==> Testing dbt for flavor ${{ matrix.version_tag }} (expected dbt ${{ matrix.dbt_version }})..."
+          echo "==> Testing dbt for flavor ${{ matrix.version_tag }}..."
           docker run --rm test-image-${{ matrix.version_tag }}:latest dbt --version
           docker run --rm test-image-${{ matrix.version_tag }}:latest sqlfluff --version
+          docker run --rm test-image-${{ matrix.version_tag }}:latest python -c "import duckdb; print('duckdb version:', duckdb.__version__)"
 
       # 3. Push to GHCR on main branch / release tags (only after smoke tests pass!)
       - name: Push image to GHCR
@@ -109,8 +107,7 @@ jobs:
           file: ./Dockerfile
           push: true
           build-args: |
-            DBT_VERSION=${{ matrix.dbt_version }}
-            DUCKDB_VERSION=${{ matrix.duckdb_version }}
+            DBT_PACKAGES=${{ matrix.dbt_packages }}
             TOOLS_VERSION=${{ matrix.tools_version }}
           tags: ${{ steps.tags.outputs.tags }}
           cache-from: type=gha,scope=${{ matrix.version_tag }}

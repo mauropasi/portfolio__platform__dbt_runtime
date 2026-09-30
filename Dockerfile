@@ -35,13 +35,11 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 # -------------------------------------------------------------
 # 3. Pre-baked Engine & Tooling (Parameterized via ARGs)
 # -------------------------------------------------------------
-ARG DBT_VERSION=1.8.10
-ARG DUCKDB_VERSION=1.8.4
+ARG DBT_PACKAGES="dbt-core==1.12.5 dbt-duckdb duckdb"
 ARG SQLFLUFF_VERSION=">=3.0.0"
 
 RUN uv pip install --system --no-cache \
-    "dbt-core==${DBT_VERSION}" \
-    "dbt-duckdb==${DUCKDB_VERSION}" \
+    ${DBT_PACKAGES} \
     "sqlfluff${SQLFLUFF_VERSION}"
 
 # -------------------------------------------------------------

@@ -40,9 +40,9 @@ flowchart TD
    - **System Dependencies** (`python`, `uv`, `dbt-core`, `dbt-duckdb`, `sqlfluff`) are baked here.
    - **Code Dependencies** (SQL models, seeds, `packages.yml`) live strictly in the consumer project repositories.
 2. **Matrix Builds from a Single Source of Truth:**
-   - A single parameterized `Dockerfile` uses Docker build arguments (`DBT_VERSION`, `DUCKDB_VERSION`, `TOOLS_VERSION`) to build multiple versions concurrently in GitHub Actions without branch proliferation:
-     - **Flavor 1 (LTS 1.8):** `dbt-core==1.8.10`, `dbt-duckdb==1.8.4`, `tools=v1` (Tagged `:1.1`, `:1.8`).
-     - **Flavor 2 (Latest 1.9):** `dbt-core==1.9.11`, `dbt-duckdb==1.9.6`, `tools=v1` (Tagged `:1.2`, `:1.9`, `:latest`, `:main`).
+   - A single parameterized `Dockerfile` uses Docker build arguments (`DBT_PACKAGES`, `TOOLS_VERSION`) to build multiple versions concurrently in GitHub Actions without branch proliferation:
+     - **Flavor 1 (Latest 1.x):** `dbt-core==1.12.5`, `dbt-duckdb`, `duckdb`, `tools=v1` (Tagged `:1.12`, `:1`, `:v1`, `:latest`, `:main`).
+     - **Flavor 2 (Next Gen v2):** `dbt>=2.0.0`, `duckdb`, `tools=v1` (Tagged `:2.0`, `:2`, `:v2`).
 3. **Decoupled Script Versioning (`scripts/v1/`, `scripts/v2/`):**
    - Platform helper scripts (like `init_duckdb.py`) are versioned in subfolders under `scripts/`.
    - Bumping dbt versions does not require touching scripts; and conversely, introducing breaking changes to internal helper scripts is managed via `TOOLS_VERSION=v2` without breaking older image flavors.
@@ -62,14 +62,14 @@ A `Makefile` is provided for local maintenance:
 # View available make targets
 make help
 
-# Build the default image locally (dbt 1.8 LTS)
+# Build the default image locally (dbt 1.12)
 make build
 
 # Build specific flavors locally
-make build-1.8
-make build-1.9
+make build-v1
+make build-v2
 
-# Run smoke tests (verifies dbt and sqlfluff binaries execute cleanly)
+# Run smoke tests (verifies dbt, sqlfluff, and duckdb execute cleanly)
 make test
 
 # Open an interactive shell inside the container
