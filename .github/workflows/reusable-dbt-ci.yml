@@ -1,0 +1,74 @@
+name: Reusable dbt CI Check
+
+on:
+  workflow_call:
+    inputs:
+      dbt_type:
+        description: 'Database adapter type (e.g. duckdb, snowflake)'
+        required: false
+        type: string
+        default: 'duckdb'
+      run_lint:
+        description: 'Whether to run sqlfluff linting'
+        required: false
+        type: boolean
+        default: true
+    secrets:
+      DBT_PASSWORD:
+        description: 'Optional database password / secret'
+        required: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    # Execute the entire job inside the official pre-baked platform container
+    container:
+      image: ghcr.io/${{ github.repository_owner }}/portfolio__platform__dbt_runtime:1
+
+    steps:
+      - name: Checkout consumer repository
+        uses: actions/checkout@v4
+
+      # -------------------------------------------------------------
+      # 1. Enforce Code Standards (Linting)
+      # -------------------------------------------------------------
+      - name: Run SQLFluff Linting
+        if: ${{ inputs.run_lint }}
+        run: |
+          echo "==> Running SQLFluff lint checks across models..."
+          sqlfluff lint models/
+
+      # -------------------------------------------------------------
+      # 2. Dynamic 12-Factor Profile Injection
+      # -------------------------------------------------------------
+      - name: Inject ephemeral profiles.yml
+        env:
+          DBT_TYPE: ${{ inputs.dbt_type }}
+          # Dynamically namespace test schema to the Pull Request number
+          DBT_SCHEMA: "pr_${{ github.event.pull_request.number || 'manual' }}"
+        run: |
+          mkdir -p /home/vscode/.dbt
+          cat <<EOF > /home/vscode/.dbt/profiles.yml
+          default:
+            target: ci
+            outputs:
+              ci:
+                type: ${DBT_TYPE}
+                path: dev.duckdb
+                schema: "${DBT_SCHEMA}"
+                threads: 4
+          EOF
+
+      # -------------------------------------------------------------
+      # 3. dbt Execution & Testing
+      # -------------------------------------------------------------
+      - name: Install dbt code dependencies (packages.yml)
+        run: |
+          if [ -f packages.yml ]; then
+            dbt deps
+          fi
+
+      - name: Build and Test Models (Seeds, Models, Data Tests)
+        run: |
+          echo "==> Executing dbt build against CI target..."
+          dbt build
