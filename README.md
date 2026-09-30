@@ -39,36 +39,44 @@ flowchart TD
 1. **Separation of Concerns:**
    - **System Dependencies** (`python`, `uv`, `dbt-core`, `dbt-duckdb`, `sqlfluff`) are baked here.
    - **Code Dependencies** (SQL models, seeds, `packages.yml`) live strictly in the consumer project repositories.
-2. **Fast & Lightweight:**
+2. **Declarative Releases (`versions.json` as Single Source of Truth):**
+   - Release lines and matrix variations are defined in [`versions.json`](file:///versions.json). Both GitHub Actions CI and the local `Makefile` dynamically consume this file:
+     - **Container Release 1.2.1 (Stable 1.x):** `dbt-core==1.12.5`, `dbt-duckdb`, `duckdb`, `tools=v1` (Tagged `:1.2.1`, `:1.2`, `:1`, `:latest`, `:main`).
+     - **Container Release 2.0.1 (Next Gen v2):** `dbt>=2.0.0`, `duckdb`, `tools=v1` (Tagged `:2.0.1`, `:2.0`, `:2`).
+3. **Decoupled Script Versioning (`scripts/v1/`, `scripts/v2/`):**
+   - Platform helper scripts (like `init_duckdb.py`) are versioned in subfolders under `scripts/`.
+   - Bumping dbt versions does not require touching scripts; and conversely, introducing breaking changes to internal helper scripts is managed via `"tools_version": "v2"` in `versions.json` without breaking older image flavors.
+4. **Fast & Lightweight:**
    - Uses `python:3.11-slim-bookworm` to keep image size compact (~350MB vs ~1.5GB typical devcontainer images).
    - Uses `uv` for ultra-fast, deterministic package installation.
-3. **Non-Root Execution:**
+5. **Non-Root Execution:**
    - Pre-configures a `vscode` user (UID/GID `1000`) with passwordless sudo, ensuring seamless bind-mount permissions when used in VS Code / Antigravity Dev Containers.
-4. **SemVer & Floating Tags:**
-   - Every Git release tag (`v1.0.0`) automatically produces:
-     - `1.0.0` (Pinned exact release)
-     - `1.0` (Floating minor tag for patches)
-     - `1` (Floating major tag)
-     - `latest`
 
 ---
 
 ## Local Development & Testing
 
-A `Makefile` is provided for local maintenance:
+A `Makefile` is provided for local maintenance that dynamically reads from `versions.json`:
 
 ```bash
 # View available make targets
 make help
 
-# Build the image locally
+# List configured release versions from versions.json
+make list-versions
+
+# Build the default release image locally (1.2.1)
 make build
 
-# Run smoke tests (verifies dbt and sqlfluff binaries execute cleanly)
-make test
+# Build a specific release line locally
+make build VERSION=2.0.1
+
+# Run smoke tests (verifies dbt, sqlfluff, and duckdb execute cleanly)
+make test VERSION=1.2.1
+make test VERSION=2.0.1
 
 # Open an interactive shell inside the container
-make run
+make run VERSION=1.2.1
 ```
 
 ---

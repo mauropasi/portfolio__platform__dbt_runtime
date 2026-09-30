@@ -16,11 +16,32 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
+  load-versions:
+    name: Load Matrix Versions
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Read versions.json
+        id: set-matrix
+        run: |
+          JSON=$(jq -c . versions.json)
+          echo "matrix=${JSON}" >> $GITHUB_OUTPUT
+
   build-and-push:
+    name: Build & Test ${{ matrix.id }} (${{ matrix.version_tag }})
+    needs: load-versions
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.load-versions.outputs.matrix) }}
 
     steps:
       - name: Checkout repository
@@ -38,37 +59,47 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Generates tags: e.g. :1.2.3, :1.2, :1, :latest, and PR branch tags
-      - name: Extract Docker metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          flavor: |
-            latest=auto
-          tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
-            type=ref,event=branch
-            type=ref,event=pr
+      # Construct exact tags for this matrix flavor
+      - name: Determine Image Tags
+        id: tags
+        run: |
+          BASE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
+          TAGS="${BASE}:${{ matrix.version_tag }}"
+          
+          # Append alias tags from array in versions.json
+          for alias in $(echo '${{ toJson(matrix.aliases) }}' | jq -r '.[]'); do
+            TAGS="${TAGS},${BASE}:${alias}"
+          done
+          
+          # If triggered by a release tag (e.g. v1.12.0) on the latest flavor, include it
+          if [[ "${{ github.ref_type }}" == "tag" && "${{ matrix.is_latest }}" == "true" ]]; then
+            TAG_CLEAN="${GITHUB_REF_NAME#v}"
+            TAGS="${TAGS},${BASE}:${TAG_CLEAN}"
+          fi
+          
+          echo "tags=${TAGS}" >> $GITHUB_OUTPUT
 
-      # 1. Build and load the image into local Docker daemon for smoke testing
+      # 1. Build and load into local Docker daemon for smoke testing
       - name: Build image for testing
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./Dockerfile
           load: true
-          tags: local-test-image:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          build-args: |
+            DBT_PACKAGES=${{ matrix.dbt_packages }}
+            TOOLS_VERSION=${{ matrix.tools_version }}
+          tags: test-image-${{ matrix.version_tag }}:latest
+          cache-from: type=gha,scope=${{ matrix.version_tag }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.version_tag }}
 
-      # 2. Smoke test: verify image executes dbt and sqlfluff cleanly
+      # 2. Smoke test: verify image executes dbt, sqlfluff, and duckdb cleanly
       - name: Smoke test image
         run: |
-          docker run --rm local-test-image:latest dbt --version
-          docker run --rm local-test-image:latest sqlfluff --version
+          echo "==> Testing dbt for flavor ${{ matrix.version_tag }}..."
+          docker run --rm test-image-${{ matrix.version_tag }}:latest dbt --version
+          docker run --rm test-image-${{ matrix.version_tag }}:latest sqlfluff --version
+          docker run --rm test-image-${{ matrix.version_tag }}:latest python -c "import duckdb; print('duckdb version:', duckdb.__version__)"
 
       # 3. Push to GHCR on main branch / release tags (only after smoke tests pass!)
       - name: Push image to GHCR
@@ -78,6 +109,8 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
+          build-args: |
+            DBT_PACKAGES=${{ matrix.dbt_packages }}
+            TOOLS_VERSION=${{ matrix.tools_version }}
+          tags: ${{ steps.tags.outputs.tags }}
+          cache-from: type=gha,scope=${{ matrix.version_tag }}
