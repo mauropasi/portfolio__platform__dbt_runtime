@@ -1,36 +1,38 @@
 IMAGE_NAME ?= portfolio__platform__dbt_runtime
-IMAGE_TAG ?= local
-DBT_PACKAGES ?= dbt-core==1.12.5 dbt-duckdb duckdb
+VERSION ?= v1
 SQLFLUFF_VERSION ?= >=3.0.0
-TOOLS_VERSION ?= v1
 
-.PHONY: help build build-v1 build-v2 test run
+# Extract attributes from versions.json for the selected VERSION (defaults to v1)
+DBT_PACKAGES ?= $(shell python3 -c 'import json; data=json.load(open("versions.json")); v=next((x for x in data if x["id"]=="$(VERSION)"), data[0]); print(v["dbt_packages"])')
+TOOLS_VERSION ?= $(shell python3 -c 'import json; data=json.load(open("versions.json")); v=next((x for x in data if x["id"]=="$(VERSION)"), data[0]); print(v["tools_version"])')
+TAG ?= $(shell python3 -c 'import json; data=json.load(open("versions.json")); v=next((x for x in data if x["id"]=="$(VERSION)"), data[0]); print(v["version_tag"])')
+
+.PHONY: help list-versions build test run
 
 help: ## Show available commands
 	@echo "Available commands:"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
 
-build: ## Build the Docker image locally (default: dbt 1.12)
+list-versions: ## List all configured versions in versions.json
+	@echo "Available versions in versions.json:"
+	@python3 -c 'import json; [print("  - %s: %s (tag: %s)" % (x["id"], x["description"], x["version_tag"])) for x in json.load(open("versions.json"))]'
+
+build: ## Build image for a version from versions.json (Usage: make build [VERSION=v1|v2])
+	@echo "==> Building $(IMAGE_NAME):$(TAG) (VERSION=$(VERSION))..."
 	docker build \
 		--build-arg DBT_PACKAGES="$(DBT_PACKAGES)" \
 		--build-arg SQLFLUFF_VERSION="$(SQLFLUFF_VERSION)" \
 		--build-arg TOOLS_VERSION=$(TOOLS_VERSION) \
-		-t $(IMAGE_NAME):$(IMAGE_TAG) .
+		-t $(IMAGE_NAME):$(TAG) .
 
-build-v1: ## Build dbt 1.12 (Latest 1.x) image locally
-	$(MAKE) build DBT_PACKAGES="dbt-core==1.12.5 dbt-duckdb duckdb" TOOLS_VERSION=v1 IMAGE_TAG=1.12
-
-build-v2: ## Build dbt v2 (Next gen) image locally
-	$(MAKE) build DBT_PACKAGES="dbt>=2.0.0 duckdb" TOOLS_VERSION=v1 IMAGE_TAG=2.0
-
-test: build ## Verify image builds and key CLIs are functioning
+test: build ## Build and smoke test image for a version (Usage: make test [VERSION=v1|v2])
 	@echo "==> Testing dbt..."
-	docker run --rm $(IMAGE_NAME):$(IMAGE_TAG) dbt --version
+	docker run --rm $(IMAGE_NAME):$(TAG) dbt --version
 	@echo "==> Testing sqlfluff..."
-	docker run --rm $(IMAGE_NAME):$(IMAGE_TAG) sqlfluff --version
+	docker run --rm $(IMAGE_NAME):$(TAG) sqlfluff --version
 	@echo "==> Testing duckdb..."
-	docker run --rm $(IMAGE_NAME):$(IMAGE_TAG) python -c "import duckdb; print('duckdb:', duckdb.__version__)"
-	@echo "==> All CLI checks passed successfully!"
+	docker run --rm $(IMAGE_NAME):$(TAG) python -c "import duckdb; print('duckdb:', duckdb.__version__)"
+	@echo "==> All checks passed for $(IMAGE_NAME):$(TAG)!"
 
-run: ## Open an interactive bash shell in the container
-	docker run --rm -it $(IMAGE_NAME):$(IMAGE_TAG) /bin/bash
+run: ## Open an interactive bash shell in the container (Usage: make run [VERSION=v1|v2])
+	docker run --rm -it $(IMAGE_NAME):$(TAG) /bin/bash

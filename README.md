@@ -39,13 +39,13 @@ flowchart TD
 1. **Separation of Concerns:**
    - **System Dependencies** (`python`, `uv`, `dbt-core`, `dbt-duckdb`, `sqlfluff`) are baked here.
    - **Code Dependencies** (SQL models, seeds, `packages.yml`) live strictly in the consumer project repositories.
-2. **Matrix Builds from a Single Source of Truth:**
-   - A single parameterized `Dockerfile` uses Docker build arguments (`DBT_PACKAGES`, `TOOLS_VERSION`) to build multiple versions concurrently in GitHub Actions without branch proliferation:
-     - **Flavor 1 (Latest 1.x):** `dbt-core==1.12.5`, `dbt-duckdb`, `duckdb`, `tools=v1` (Tagged `:1.12`, `:1`, `:v1`, `:latest`, `:main`).
-     - **Flavor 2 (Next Gen v2):** `dbt>=2.0.0`, `duckdb`, `tools=v1` (Tagged `:2.0`, `:2`, `:v2`).
+2. **Declarative Releases (`versions.json` as Single Source of Truth):**
+   - Release lines and matrix variations are defined in [`versions.json`](file:///versions.json). Both GitHub Actions CI and the local `Makefile` dynamically consume this file:
+     - **Release v1 (Stable 1.x):** `dbt-core==1.12.5`, `dbt-duckdb`, `duckdb`, `tools=v1` (Tagged `:1.12`, `:1`, `:v1`, `:latest`, `:main`).
+     - **Release v2 (Next Gen v2):** `dbt>=2.0.0`, `duckdb`, `tools=v1` (Tagged `:2.0`, `:2`, `:v2`).
 3. **Decoupled Script Versioning (`scripts/v1/`, `scripts/v2/`):**
    - Platform helper scripts (like `init_duckdb.py`) are versioned in subfolders under `scripts/`.
-   - Bumping dbt versions does not require touching scripts; and conversely, introducing breaking changes to internal helper scripts is managed via `TOOLS_VERSION=v2` without breaking older image flavors.
+   - Bumping dbt versions does not require touching scripts; and conversely, introducing breaking changes to internal helper scripts is managed via `"tools_version": "v2"` in `versions.json` without breaking older image flavors.
 4. **Fast & Lightweight:**
    - Uses `python:3.11-slim-bookworm` to keep image size compact (~350MB vs ~1.5GB typical devcontainer images).
    - Uses `uv` for ultra-fast, deterministic package installation.
@@ -56,24 +56,27 @@ flowchart TD
 
 ## Local Development & Testing
 
-A `Makefile` is provided for local maintenance:
+A `Makefile` is provided for local maintenance that dynamically reads from `versions.json`:
 
 ```bash
 # View available make targets
 make help
 
-# Build the default image locally (dbt 1.12)
+# List configured release versions from versions.json
+make list-versions
+
+# Build the default release image locally (v1)
 make build
 
-# Build specific flavors locally
-make build-v1
-make build-v2
+# Build a specific release line locally
+make build VERSION=v2
 
 # Run smoke tests (verifies dbt, sqlfluff, and duckdb execute cleanly)
-make test
+make test VERSION=v1
+make test VERSION=v2
 
 # Open an interactive shell inside the container
-make run
+make run VERSION=v1
 ```
 
 ---

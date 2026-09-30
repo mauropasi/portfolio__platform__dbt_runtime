@@ -1,0 +1,28 @@
+[
+  {
+    "id": "v1",
+    "description": "dbt v1.12 (Stable LTS)",
+    "version_tag": "1.12",
+    "dbt_packages": "dbt-core==1.12.5 dbt-duckdb duckdb",
+    "tools_version": "v1",
+    "aliases": [
+      "1",
+      "v1",
+      "latest",
+      "main"
+    ],
+    "is_latest": true
+  },
+  {
+    "id": "v2",
+    "description": "dbt v2.0 (Next Generation)",
+    "version_tag": "2.0",
+    "dbt_packages": "dbt>=2.0.0 duckdb",
+    "tools_version": "v1",
+    "aliases": [
+      "2",
+      "v2"
+    ],
+    "is_latest": false
+  }
+]
