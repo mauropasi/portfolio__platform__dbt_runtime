@@ -39,17 +39,18 @@ flowchart TD
 1. **Separation of Concerns:**
    - **System Dependencies** (`python`, `uv`, `dbt-core`, `dbt-duckdb`, `sqlfluff`) are baked here.
    - **Code Dependencies** (SQL models, seeds, `packages.yml`) live strictly in the consumer project repositories.
-2. **Fast & Lightweight:**
+2. **Matrix Builds from a Single Source of Truth:**
+   - A single parameterized `Dockerfile` uses Docker build arguments (`DBT_VERSION`, `DUCKDB_VERSION`, `TOOLS_VERSION`) to build multiple versions concurrently in GitHub Actions without branch proliferation:
+     - **Flavor 1 (LTS 1.8):** `dbt-core==1.8.10`, `dbt-duckdb==1.8.4`, `tools=v1` (Tagged `:1.1`, `:1.8`).
+     - **Flavor 2 (Latest 1.9):** `dbt-core==1.9.11`, `dbt-duckdb==1.9.6`, `tools=v1` (Tagged `:1.2`, `:1.9`, `:latest`, `:main`).
+3. **Decoupled Script Versioning (`scripts/v1/`, `scripts/v2/`):**
+   - Platform helper scripts (like `init_duckdb.py`) are versioned in subfolders under `scripts/`.
+   - Bumping dbt versions does not require touching scripts; and conversely, introducing breaking changes to internal helper scripts is managed via `TOOLS_VERSION=v2` without breaking older image flavors.
+4. **Fast & Lightweight:**
    - Uses `python:3.11-slim-bookworm` to keep image size compact (~350MB vs ~1.5GB typical devcontainer images).
    - Uses `uv` for ultra-fast, deterministic package installation.
-3. **Non-Root Execution:**
+5. **Non-Root Execution:**
    - Pre-configures a `vscode` user (UID/GID `1000`) with passwordless sudo, ensuring seamless bind-mount permissions when used in VS Code / Antigravity Dev Containers.
-4. **SemVer & Floating Tags:**
-   - Every Git release tag (`v1.0.0`) automatically produces:
-     - `1.0.0` (Pinned exact release)
-     - `1.0` (Floating minor tag for patches)
-     - `1` (Floating major tag)
-     - `latest`
 
 ---
 
@@ -61,8 +62,12 @@ A `Makefile` is provided for local maintenance:
 # View available make targets
 make help
 
-# Build the image locally
+# Build the default image locally (dbt 1.8 LTS)
 make build
+
+# Build specific flavors locally
+make build-1.8
+make build-1.9
 
 # Run smoke tests (verifies dbt and sqlfluff binaries execute cleanly)
 make test

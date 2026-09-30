@@ -1,6 +1,0 @@
-# dbt Core & Warehouse Adapters
-dbt-core>=1.7.0,<1.9.0
-dbt-duckdb>=1.7.0,<1.9.0
-
-# Code Quality & Testing Tools
-sqlfluff>=3.0.0
