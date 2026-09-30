@@ -41,8 +41,8 @@ flowchart TD
    - **Code Dependencies** (SQL models, seeds, `packages.yml`) live strictly in the consumer project repositories.
 2. **Declarative Releases (`versions.json` as Single Source of Truth):**
    - Release lines and matrix variations are defined in [`versions.json`](file:///versions.json). Both GitHub Actions CI and the local `Makefile` dynamically consume this file:
-     - **Release v1 (Stable 1.x):** `dbt-core==1.12.5`, `dbt-duckdb`, `duckdb`, `tools=v1` (Tagged `:1.12`, `:1`, `:v1`, `:latest`, `:main`).
-     - **Release v2 (Next Gen v2):** `dbt>=2.0.0`, `duckdb`, `tools=v1` (Tagged `:2.0`, `:2`, `:v2`).
+     - **Container Release 1.2 (Stable 1.x):** `dbt-core==1.12.5`, `dbt-duckdb`, `duckdb`, `tools=v1` (Tagged `:1.2`, `:1`, `:latest`, `:main`).
+     - **Container Release 2.0 (Next Gen v2):** `dbt>=2.0.0`, `duckdb`, `tools=v1` (Tagged `:2.0`, `:2`).
 3. **Decoupled Script Versioning (`scripts/v1/`, `scripts/v2/`):**
    - Platform helper scripts (like `init_duckdb.py`) are versioned in subfolders under `scripts/`.
    - Bumping dbt versions does not require touching scripts; and conversely, introducing breaking changes to internal helper scripts is managed via `"tools_version": "v2"` in `versions.json` without breaking older image flavors.
@@ -65,18 +65,18 @@ make help
 # List configured release versions from versions.json
 make list-versions
 
-# Build the default release image locally (v1)
+# Build the default release image locally (1.2)
 make build
 
 # Build a specific release line locally
-make build VERSION=v2
+make build VERSION=2.0
 
 # Run smoke tests (verifies dbt, sqlfluff, and duckdb execute cleanly)
-make test VERSION=v1
-make test VERSION=v2
+make test VERSION=1.2
+make test VERSION=2.0
 
 # Open an interactive shell inside the container
-make run VERSION=v1
+make run VERSION=1.2
 ```
 
 ---
