@@ -50,11 +50,20 @@ COPY scripts/${TOOLS_VERSION}/init_duckdb.py /usr/local/bin/init_duckdb.py
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/init_duckdb.py /usr/local/bin/entrypoint.sh
 
+# -------------------------------------------------------------
+# 5. Pre-baked 12-Factor dbt Profile
+# -------------------------------------------------------------
+RUN mkdir -p /home/${USERNAME}/.dbt /root/.dbt
+COPY config/profiles.yml /home/${USERNAME}/.dbt/profiles.yml
+COPY config/profiles.yml /root/.dbt/profiles.yml
+RUN chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.dbt
+
 USER $USERNAME
 WORKDIR /workspace
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
+    DBT_PROFILES_DIR="/home/vscode/.dbt" \
     PATH="/home/vscode/.local/bin:${PATH}"
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

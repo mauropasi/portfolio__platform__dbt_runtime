@@ -9,7 +9,7 @@ on:
         type: string
         default: 'duckdb'
       runtime_image_tag:
-        description: 'Tag of the platform runtime image to use (e.g. main, latest, 1.8, 1.9, 1.1, 1.2)'
+        description: 'Tag of the platform runtime image to use (e.g. main, latest, 1.2.1, 2.0.1)'
         required: false
         type: string
         default: 'main'
@@ -44,28 +44,7 @@ jobs:
           sqlfluff lint models/
 
       # -------------------------------------------------------------
-      # 2. Dynamic 12-Factor Profile Injection
-      # -------------------------------------------------------------
-      - name: Inject ephemeral profiles.yml
-        env:
-          DBT_TYPE: ${{ inputs.dbt_type }}
-          # Dynamically namespace test schema to the Pull Request number
-          DBT_SCHEMA: "pr_${{ github.event.pull_request.number || 'manual' }}"
-        run: |
-          mkdir -p /home/vscode/.dbt
-          cat <<EOF > /home/vscode/.dbt/profiles.yml
-          default:
-            target: ci
-            outputs:
-              ci:
-                type: ${DBT_TYPE}
-                path: dev.duckdb
-                schema: "${DBT_SCHEMA}"
-                threads: 4
-          EOF
-
-      # -------------------------------------------------------------
-      # 3. dbt Execution & Testing
+      # 2. dbt Dependencies
       # -------------------------------------------------------------
       - name: Install dbt code dependencies (packages.yml)
         run: |
@@ -73,7 +52,15 @@ jobs:
             dbt deps
           fi
 
-      - name: Build and Test Models (Seeds, Models, Data Tests)
+      # -------------------------------------------------------------
+      # 3. 12-Factor dbt Execution & Testing
+      # -------------------------------------------------------------
+      - name: Build and Test Models (Isolated PR schema in dev warehouse)
+        env:
+          DBT_TARGET: ci
+          DBT_TYPE: ${{ inputs.dbt_type }}
+          # Dynamically namespace test schema to the Pull Request number
+          DBT_SCHEMA: "pr_${{ github.event.pull_request.number || 'manual' }}"
         run: |
-          echo "==> Executing dbt build against CI target..."
+          echo "==> Executing dbt build against isolated PR schema ($DBT_SCHEMA)..."
           dbt build
