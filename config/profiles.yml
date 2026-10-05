@@ -1,0 +1,36 @@
+# -------------------------------------------------------------
+# 12-Factor Universal dbt Profile
+# Fully parameterized via environment variables.
+# -------------------------------------------------------------
+default:
+  target: "{{ env_var('DBT_TARGET', 'dev') }}"
+
+  outputs:
+    # 1. Local Developer Target (defaults to dev.duckdb, attaches prod.duckdb for deferral)
+    dev:
+      type: "{{ env_var('DBT_TYPE', 'duckdb') }}"
+      path: "{{ env_var('DBT_DEV_PATH', 'dev.duckdb') }}"
+      schema: "{{ env_var('DBT_SCHEMA', 'main') }}"
+      threads: {{ env_var('DBT_THREADS', '4') | int }}
+      attach:
+        - path: "{{ env_var('DBT_PROD_PATH', 'prod.duckdb') }}"
+          name: prod
+          read_only: true
+
+    # 2. Ephemeral Pull Request CI Target (runs in dev.duckdb with isolated schema)
+    ci:
+      type: "{{ env_var('DBT_TYPE', 'duckdb') }}"
+      path: "{{ env_var('DBT_DEV_PATH', 'dev.duckdb') }}"
+      schema: "{{ env_var('DBT_SCHEMA', 'ci') }}"
+      threads: {{ env_var('DBT_THREADS', '4') | int }}
+      attach:
+        - path: "{{ env_var('DBT_PROD_PATH', 'prod.duckdb') }}"
+          name: prod
+          read_only: true
+
+    # 3. Production Release Target (writes to prod.duckdb)
+    prod:
+      type: "{{ env_var('DBT_TYPE', 'duckdb') }}"
+      path: "{{ env_var('DBT_PROD_PATH', 'prod.duckdb') }}"
+      schema: "{{ env_var('DBT_SCHEMA', 'main') }}"
+      threads: {{ env_var('DBT_THREADS', '4') | int }}

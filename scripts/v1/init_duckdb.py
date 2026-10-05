@@ -57,6 +57,13 @@ def init_duckdb():
 
         con.close()
 
+    # Ensure both dev.duckdb and prod.duckdb exist on disk to support cross-db ATTACH in 12-factor profiles
+    for default_db in ["dev", "prod"]:
+        default_file = f"{default_db}.duckdb"
+        if not Path(default_file).exists():
+            con = duckdb.connect(default_file)
+            con.close()
+
     print("==> [init_duckdb] All environment databases successfully initialized.")
 
 if __name__ == "__main__":

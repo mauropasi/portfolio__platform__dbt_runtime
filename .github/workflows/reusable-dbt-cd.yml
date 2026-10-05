@@ -1,0 +1,71 @@
+name: Reusable dbt CD (Production Release)
+
+on:
+  workflow_call:
+    inputs:
+      runtime_image_tag:
+        description: 'Tag of the platform runtime image to use'
+        required: false
+        type: string
+        default: 'main'
+      upload_docs:
+        description: 'Whether to generate and upload dbt documentation and manifest artifacts'
+        required: false
+        type: boolean
+        default: true
+    secrets:
+      DBT_PASSWORD:
+        description: 'Optional database password / secret'
+        required: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/${{ github.repository_owner }}/portfolio__platform__dbt_runtime:${{ inputs.runtime_image_tag }}
+      env:
+        DBT_TARGET: prod
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # -------------------------------------------------------------
+      # 1. dbt Code Dependencies
+      # -------------------------------------------------------------
+      - name: Install dbt packages
+        run: |
+          if [ -f packages.yml ]; then
+            dbt deps
+          fi
+
+      # -------------------------------------------------------------
+      # 2. Production Warehouse Execution
+      # -------------------------------------------------------------
+      - name: Run Production dbt Build
+        run: |
+          echo "==> Deploying models to production warehouse (target=prod)..."
+          dbt build --target prod
+
+      # -------------------------------------------------------------
+      # 3. Documentation & Manifest Generation
+      # -------------------------------------------------------------
+      - name: Generate dbt Documentation
+        if: ${{ inputs.upload_docs }}
+        run: |
+          echo "==> Generating dbt catalog and documentation..."
+          dbt docs generate --target prod
+
+      # -------------------------------------------------------------
+      # 4. Upload Production Manifest (for Deferral) and Documentation
+      # -------------------------------------------------------------
+      - name: Publish Production Artifacts (Docs & Deferral Manifest)
+        if: ${{ inputs.upload_docs }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: prod-artifacts
+          path: |
+            target/manifest.json
+            target/catalog.json
+            target/index.html
+          retention-days: 30
